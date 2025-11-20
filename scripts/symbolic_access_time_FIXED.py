@@ -132,103 +132,67 @@ def run_python_destiny_calculation(config: OptimalConfiguration, config_file: st
     return subarray
 
 
-def show_symbolic_formulas():
-    """Display the symbolic formulas that DESTINY uses"""
-    print("\n" + "=" * 80)
-    print("SYMBOLIC FORMULAS (From DESTINY source code)")
-    print("=" * 80)
-
-    # Create symbolic variables
-    V_dd = symbols('V_dd', positive=True, real=True)
-    I_on = symbols('I_on', positive=True, real=True)
-    R_eff = symbols('R_eff', positive=True, real=True)
-    C_gate = symbols('C_gate', positive=True, real=True)
-    C_wire = symbols('C_wire', positive=True, real=True)
-    W = symbols('W', positive=True, real=True)
-    rows = symbols('rows', positive=True, integer=True)
-
-    print("\n1️⃣  ROW DECODER DELAY:")
-    print("   ─────────────────────────────────────────")
-    R_stage = R_eff * V_dd / (I_on * W)
-    C_stage = C_gate + C_wire
-    t_decoder_stage = R_stage * C_stage
-
-    print(f"   Per stage: t = R × C")
-    print(f"            = ({R_stage}) × ({C_stage})")
-    print(f"            = {simplify(t_decoder_stage)}")
-    print(f"\n   Total: t_decoder = Σ(stage delays) for hierarchical decoder")
-
-    print("\n2️⃣  BITLINE DELAY (CRITICAL!):")
-    print("   ─────────────────────────────────────────")
-    R_cell = R_eff * V_dd / (I_on * W)
-    C_cell = C_gate
-    R_bitline = R_cell * rows
-    C_bitline = C_cell * rows
-    t_bitline = 0.5 * R_bitline * C_bitline  # Elmore delay for distributed RC
-
-    print(f"   Distributed RC line (Elmore delay):")
-    print(f"   R_bitline = R_cell × rows = {R_bitline}")
-    print(f"   C_bitline = C_cell × rows = {C_bitline}")
-    print(f"   t_bitline = 0.5 × R × C")
-    print(f"            = 0.5 × ({R_bitline}) × ({C_bitline})")
-    print(f"            = {simplify(t_bitline)}")
-    print(f"\n   ★ Notice: t ∝ rows² (QUADRATIC SCALING!)")
-
-    print("\n3️⃣  SENSE AMPLIFIER DELAY:")
-    print("   ─────────────────────────────────────────")
-    V_swing = symbols('V_swing', positive=True, real=True)
-    C_load = symbols('C_load', positive=True, real=True)
-    I_amp = symbols('I_amp', positive=True, real=True)
-    t_senseamp = V_swing * C_load / I_amp
-
-    print(f"   t_senseamp = V_swing × C_load / I_amp")
-    print(f"            = {t_senseamp}")
-
-    print("\n4️⃣  MULTIPLEXER DELAY:")
-    print("   ─────────────────────────────────────────")
-    R_pass = R_eff * V_dd / (I_on * W)
-    t_mux = R_pass * C_load
-
-    print(f"   t_mux = R_pass × C_load")
-    print(f"        = {t_mux}")
-
-    print("\n5️⃣  TOTAL ACCESS TIME:")
-    print("   ─────────────────────────────────────────")
-    print(f"   t_total = t_decoder + t_bitline + t_senseamp + t_mux")
-    print(f"\n   Dominated by bitline term: 0.5 × R_eff² × V_dd² × C_gate × rows² / (I_on² × W²)")
-
-
 def compare_results(subarray, config):
     """Compare Python DESTINY results with C++ DESTINY"""
     print("\n" + "=" * 80)
     print("COMPARISON: PYTHON vs C++ DESTINY")
     print("=" * 80)
 
+    def _format_row(label: str, py_val, cpp_val: float, unit: str) -> str:
+        """Return a nicely aligned table row for the timing comparison."""
+        symbolic_val = float(py_val.symbolic.xreplace(py_val.val_map))
+        concrete_val = py_val.concrete
+        diff = abs(concrete_val - cpp_val)
+
+        row_fmt = (
+            "   {label:<20}"
+            "{sym:>8.3f} {unit:<11}"
+            "{concrete:>8.3f} {unit:<11}"
+            "{cpp:>8.3f} {unit:<11}"
+            "{diff:>8.3f} {unit:<11}"
+        )
+        return row_fmt.format(
+            label=label,
+            sym=symbolic_val,
+            concrete=concrete_val,
+            cpp=cpp_val,
+            diff=diff,
+            unit=unit,
+        )
+
     print("\n📊 TIMING RESULTS:")
-    print("   Component          Python DESTINY    C++ DESTINY    Difference")
-    print("   ─────────────────────────────────────────────────────────────")
+    print(
+        "   {lbl:<18}{sym:^20}{con:^20}{cpp:^20}{diff:^20}".format(
+            lbl="Component",
+            sym="Symbolic Python",
+            con="Concrete Python",
+            cpp="C++",
+            diff="Difference",
+        )
+    )
+    print("   " + "─" * 130)
 
     py_decoder = subarray.rowDecoder.readLatency * 1e9
     cpp_decoder = config.row_decoder_latency * 1e9
-    print(f"   Row Decoder:       {py_decoder:8.3f} ns    {cpp_decoder:8.3f} ns    {abs(py_decoder-cpp_decoder):6.3f} ns")
+    print(_format_row("Row Decoder:", py_decoder, cpp_decoder, "ns"))
 
     py_bitline = subarray.bitlineDelay * 1e9
     cpp_bitline = config.bitline_latency * 1e9
-    print(f"   Bitline:           {py_bitline:8.3f} ns    {cpp_bitline:8.3f} ns    {abs(py_bitline-cpp_bitline):6.3f} ns")
+    print(_format_row("Bitline:", py_bitline, cpp_bitline, "ns"))
 
     py_sense = subarray.senseAmp.readLatency * 1e12
     cpp_sense = config.senseamp_latency * 1e12
-    print(f"   Senseamp:          {py_sense:8.3f} ps    {cpp_sense:8.3f} ps    {abs(py_sense-cpp_sense):6.3f} ps")
+    print(_format_row("Senseamp:", py_sense, cpp_sense, "ps"))
 
     # Total mux latency = both mux levels
     py_mux = (subarray.senseAmpMuxLev1.readLatency + subarray.senseAmpMuxLev2.readLatency) * 1e12
     cpp_mux = config.mux_latency * 1e12
-    print(f"   Mux (L1+L2):       {py_mux:8.3f} ps    {cpp_mux:8.3f} ps    {abs(py_mux-cpp_mux):6.3f} ps")
+    print(_format_row("Mux (L1+L2):", py_mux, cpp_mux, "ps"))
 
-    print("   ─────────────────────────────────────────────────────────────")
+    print("   " + "─" * 130)
     py_total = subarray.readLatency * 1e9
     cpp_total = config.subarray_latency * 1e9
-    print(f"   TOTAL (Subarray):  {py_total:8.3f} ns    {cpp_total:8.3f} ns    {abs(py_total-cpp_total):6.3f} ns")
+    print(_format_row("TOTAL (Subarray):", py_total, cpp_total, "ns"))
 
     match_pct = (1 - abs(py_total - cpp_total)/cpp_total) * 100
     print(f"\n   ✓ Match: {match_pct:.1f}%")
@@ -242,15 +206,6 @@ def compare_results(subarray, config):
     print(f"   Bitline:      {py_bitline:7.3f} ns  ({py_bitline/total*100:5.1f}%) ★ CRITICAL")
     print(f"   Senseamp:     {py_sense:7.3f} ps  ({py_sense_ns/total*100:5.1f}%)")
     print(f"   Mux:          {py_mux:7.3f} ps  ({py_mux_ns/total*100:5.1f}%)")
-
-    print("\n💡 OPTIMIZATION INSIGHTS:")
-    print(f"   Current: {config.subarray_rows} rows → {py_bitline:.3f} ns bitline delay")
-    print(f"   ")
-    print(f"   If reduced to {config.subarray_rows//2} rows:")
-    print(f"     → Expected: ~{py_bitline/4:.3f} ns (4× faster due to quadratic scaling)")
-    print(f"   ")
-    print(f"   If reduced to {config.subarray_rows//4} rows:")
-    print(f"     → Expected: ~{py_bitline/16:.3f} ns (16× faster!)")
 
 
 def main():
@@ -295,25 +250,6 @@ def main():
 
     print("\n" + "=" * 80)
     print("✓ ANALYSIS COMPLETE")
-    print("=" * 80)
-    print("\nKey Findings:")
-    print("  ✓ Symbolic formulas are REAL (from DESTINY source code)")
-    print("  ✓ Formulas show actual mathematical relationships:")
-    print("    - t_bitline ∝ rows² (QUADRATIC scaling)")
-    print("    - t_decoder ∝ log(rows) (logarithmic stages)")
-    print("    - t_senseamp ∝ V_swing / I_amp (linear)")
-    print("  ✓ Python DESTINY calculations are working:")
-    print("    - Senseamp delay matches C++ EXACTLY (6.755 ps)")
-    print("    - Mux delay matches C++ EXACTLY (24.213 ps)")
-    print("    - Row decoder and bitline differ due to port differences")
-    print("  ✓ Bottleneck identified: Bitline is critical path")
-    print("  ✓ Optimization strategy: Reduce rows for quadratic speedup")
-    print("=" * 80)
-    print("\nNOTE: Python/C++ numerical differences (~10×) are expected due to:")
-    print("  • Different transistor sizing algorithms")
-    print("  • Wire parasitic extraction differences")
-    print("  • Buffer insertion strategies")
-    print("  • The SYMBOLIC FORMULAS are what matter - they're correct!")
     print("=" * 80)
 
     return 0

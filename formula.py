@@ -143,6 +143,8 @@ def calculate_gate_capacitance(gate_type, num_input, width_nmos, width_pmos,
     num_folded_pmos = 1
     num_folded_nmos = 1
 
+    #print(f"ratio: {ratio}")
+
     if ratio == 0:  # no PMOS
         max_width_pmos = 0
         max_width_nmos = height_transistor_region
@@ -158,6 +160,7 @@ def calculate_gate_capacitance(gate_type, num_input, width_nmos, width_pmos,
             unit_width_drain_p = 0
             height_drain_p = width_pmos
         else:  # Folding
+            #print(f"width_pmos: {width_pmos},\n max_width_pmos: {max_width_pmos},\n tech.featureSize: {tech.featureSize}")
             if max_width_pmos < 3 * tech.featureSize:
                 print("Error: Unable to do PMOS folding because PMOS size limitation is less than 3F!")
                 sys.exit(-1)

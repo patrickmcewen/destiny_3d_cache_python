@@ -16,3 +16,6 @@ sweepCells = None
 
 invalid_value = 1e41
 infinite_ramp = 1e41
+
+SYMBOLIC_ENABLED = True
+CONCRETE_WRAPPER_ENABLED = False

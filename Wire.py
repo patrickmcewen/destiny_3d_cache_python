@@ -23,6 +23,7 @@ from formula import (calculate_gate_area as CalculateGateArea,
                      horowitz, MIN, MAX)
 import globals as g
 from SenseAmp import SenseAmp
+from symbolic_wrapper import SymbolicValue, ConcreteWrapper
 
 
 class Wire:
@@ -127,6 +128,8 @@ class Wire:
             self.featureSize = _featureSizeInNano * 1e-9
             self._initialize_default(copper_resistivity)
 
+        self.initialize_symbolic()
+
         # Calculate wire dimensions
         self.wireWidth = self.wirePitch / 2
         self.wireThickness = self.aspectRatio * self.wireWidth
@@ -176,6 +179,31 @@ class Wire:
             self.repeatedWirePitch = self.wirePitch + self.repeaterWidth
 
         self.initialized = True
+
+    # should be called after the other _initialize_x function    
+    def initialize_symbolic(self):
+        """Initialize symbolic parameters.
+        
+        Converts existing calculated values to SymbolicValue objects.
+        Asserts that values are not already SymbolicValue to prevent double conversion.
+        """
+        assert not isinstance(self.barrierThickness, SymbolicValue), "barrierThickness is already symbolic"
+        assert not isinstance(self.horizontalDielectric, SymbolicValue), "horizontalDielectric is already symbolic"
+        assert not isinstance(self.wirePitch, SymbolicValue), "wirePitch is already symbolic"
+        assert not isinstance(self.aspectRatio, SymbolicValue), "aspectRatio is already symbolic"
+        assert not isinstance(self.ildThickness, SymbolicValue), "ildThickness is already symbolic"
+        if g.SYMBOLIC_ENABLED:
+            self.barrierThickness = SymbolicValue(self.barrierThickness, name="barrierThickness")
+            self.horizontalDielectric = SymbolicValue(self.horizontalDielectric, name="horizontalDielectric")
+            self.wirePitch = SymbolicValue(self.wirePitch, name="wirePitch")
+            self.aspectRatio = SymbolicValue(self.aspectRatio, name="aspectRatio")
+            self.ildThickness = SymbolicValue(self.ildThickness, name="ildThickness")
+        elif g.CONCRETE_WRAPPER_ENABLED:
+            self.barrierThickness = ConcreteWrapper(self.barrierThickness)
+            self.horizontalDielectric = ConcreteWrapper(self.horizontalDielectric)
+            self.wirePitch = ConcreteWrapper(self.wirePitch)
+            self.aspectRatio = ConcreteWrapper(self.aspectRatio)
+            self.ildThickness = ConcreteWrapper(self.ildThickness)
 
     def _initialize_22nm(self, copper_resistivity):
         """Initialize parameters for 22nm node."""

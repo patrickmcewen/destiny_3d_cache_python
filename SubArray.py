@@ -20,6 +20,7 @@ import globals as g
 from formula import (calculate_gate_cap, calculate_drain_cap, calculate_on_resistance,
                      calculate_transconductance, calculate_gate_leakage, horowitz,
                      calculate_fbram_gate_cap, calculate_fbram_drain_cap)
+from symbolic_wrapper import SymbolicValue
 
 
 class SubArray(FunctionUnit):
@@ -179,6 +180,8 @@ class SubArray(FunctionUnit):
                     maxBitlineCurrent = resetCurrent + g.cell.leakageCurrentAccessDevice * (self.numRow - 1)
                     maxBitlineCurrent += g.cell.leakageCurrentAccessDevice * self.numRow * (self.num3DLevels - 1)
 
+        #assert(isinstance(g.tech.currentOnNmos[g.inputParameter.temperature - 300], SymbolicValue), f"currentOnNmos[{g.inputParameter.temperature - 300}] is not a SymbolicValue")
+        #assert(isinstance(g.tech.currentOffNmos[g.inputParameter.temperature - 300], SymbolicValue), f"currentOffNmos[{g.inputParameter.temperature - 300}] is not a SymbolicValue")
         minBitlineMuxWidth = maxBitlineCurrent / g.tech.currentOnNmos[g.inputParameter.temperature - 300]
         minBitlineMuxWidth = max(MIN_NMOS_SIZE * g.tech.featureSize, minBitlineMuxWidth)
         if minBitlineMuxWidth > g.inputParameter.maxNmosSize * g.tech.featureSize:
