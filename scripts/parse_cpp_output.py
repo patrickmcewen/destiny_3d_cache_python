@@ -15,14 +15,19 @@ class OptimalConfiguration:
         self.num_banks_x = None
         self.num_banks_y = None
         self.num_stacks = None
+        self.active_mats_row = None
+        self.active_mats_col = None
 
-        # Mat organization
+        # Mat / subarray organization
         self.num_mats_x = None
         self.num_mats_y = None
+        self.active_subarrays_row = None
+        self.active_subarrays_col = None
 
         # Subarray size
         self.subarray_rows = None
         self.subarray_cols = None
+        self.rows_per_set = None
 
         # Mux levels
         self.senseamp_mux = None
@@ -80,13 +85,25 @@ def parse_cpp_destiny_output(output_file: str) -> OptimalConfiguration:
     if data_section:
         section_text = data_section.group(0)
 
-        # Parse Bank Organization: X x Y x Z
-        bank_match = re.search(r'Bank Organization:\s*(\d+)\s*x\s*(\d+)\s*x\s*(\d+)',
-                               section_text)
+        # Parse Bank Organization: handle either "X x Y" or "X x Y x Z"
+        bank_match = re.search(
+            r'Bank Organization:\s*(\d+)\s*x\s*(\d+)(?:\s*x\s*(\d+))?',
+            section_text
+        )
         if bank_match:
             config.num_banks_x = int(bank_match.group(1))
             config.num_banks_y = int(bank_match.group(2))
-            config.num_stacks = int(bank_match.group(3))
+            if bank_match.group(3):
+                config.num_stacks = int(bank_match.group(3))
+
+        # Bank activation (limit search to portion before Mat Organization)
+        bank_section = section_text.split('Mat Organization')[0] if 'Mat Organization' in section_text else section_text
+        bank_row_act = re.search(r'Row\s+Activation\s*:\s*(\d+)\s*/', bank_section)
+        if bank_row_act:
+            config.active_mats_row = int(bank_row_act.group(1))
+        bank_col_act = re.search(r'Column\s+Activation\s*:\s*(\d+)\s*/', bank_section)
+        if bank_col_act:
+            config.active_mats_col = int(bank_col_act.group(1))
 
         # Parse Mat Organization: X x Y
         mat_match = re.search(r'Mat Organization:\s*(\d+)\s*x\s*(\d+)',
@@ -94,6 +111,17 @@ def parse_cpp_destiny_output(output_file: str) -> OptimalConfiguration:
         if mat_match:
             config.num_mats_x = int(mat_match.group(1))
             config.num_mats_y = int(mat_match.group(2))
+
+        # Mat activation info
+        mat_section_match = re.search(r'Mat Organization:(.*?)(?:Mux Level:|Local Wire:|Global Wire:|Buffer Design)', section_text, re.DOTALL)
+        if mat_section_match:
+            mat_section = mat_section_match.group(1)
+            mat_row_act = re.search(r'Row\s+Activation\s*:\s*(\d+)\s*/', mat_section)
+            if mat_row_act:
+                config.active_subarrays_row = int(mat_row_act.group(1))
+            mat_col_act = re.search(r'Column\s+Activation\s*:\s*(\d+)\s*/', mat_section)
+            if mat_col_act:
+                config.active_subarrays_col = int(mat_col_act.group(1))
 
         # Parse Subarray Size: ROWS Rows x COLS Columns
         subarray_match = re.search(r'Subarray Size\s*:\s*(\d+)\s*Rows\s*x\s*(\d+)\s*Columns',
@@ -114,6 +142,10 @@ def parse_cpp_destiny_output(output_file: str) -> OptimalConfiguration:
         output_l2 = re.search(r'Output Level-2 Mux:\s*(\d+)', section_text)
         if output_l2:
             config.output_mux_l2 = int(output_l2.group(1))
+
+        rows_per_set = re.search(r'One\s+set\s+is\s+partitioned\s+into\s+(\d+)\s+rows', section_text)
+        if rows_per_set:
+            config.rows_per_set = int(rows_per_set.group(1))
 
         # Parse timing details
         read_lat = re.search(r'Read Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)

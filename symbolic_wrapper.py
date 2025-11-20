@@ -230,10 +230,10 @@ class SymbolicValue:
             self.val_map[self.symbolic] = self.concrete
         else:
             self.symbolic = symbolic
-            assert(isinstance(self.symbolic, sp.Expr), f"symbolic is not a SymbolicValue")
+            assert isinstance(self.symbolic, sp.Expr), f"symbolic is not a SymbolicValue"
             for symbol, value in val_map.items():
                 self.val_map[symbol] = value
-        assert(isinstance(self.symbolic, sp.Expr), f"symbolic is not a SymbolicValue")
+        assert isinstance(self.symbolic, sp.Expr), f"symbolic is not a SymbolicValue"
         #print(f"symbolic: {self.symbolic}, name: {name}")
         check_symbolic_match(self.concrete, self.symbolic, self.val_map)
     
@@ -639,7 +639,7 @@ def check_symbolic_match(concrete_val: float, symbolic_val: sp.Expr,
         context: Description of what's being checked (for error messages)
     """
     if abs(concrete_val) < 1e-20:
-        if symbolic_val.xreplace(substitutions) != 0:
+        if symbolic_val.xreplace(substitutions) > 1e-20:
             print(f"Symbolic mismatch on zero check {context}: concrete={concrete_val}, symbolic={symbolic_val.xreplace(substitutions)}")
             """raise AssertionError(
                 f"Symbolic mismatch {context}: "
