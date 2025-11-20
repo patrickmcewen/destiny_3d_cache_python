@@ -153,21 +153,24 @@ def run_python_destiny_calculation(config: OptimalConfiguration, config_file: st
     g.tech.Initialize(
         g.inputParameter.processNode,
         g.inputParameter.deviceRoadmap,
-        g.inputParameter
+        g.inputParameter,
+        "tech_peripheral"
     )
 
     g.devtech = Technology()
     g.devtech.Initialize(
         g.inputParameter.processNode,
         g.inputParameter.deviceRoadmap,
-        g.inputParameter
+        g.inputParameter,
+        "cell_tech"
     )
 
     g.gtech = Technology()
     g.gtech.Initialize(
         g.inputParameter.processNode,
         g.inputParameter.deviceRoadmap,
-        g.inputParameter
+        g.inputParameter,
+        "global_tech"
     )
 
     # Initialize Wire objects (required by SubArray)
@@ -180,7 +183,8 @@ def run_python_destiny_calculation(config: OptimalConfiguration, config_file: st
         WireType.local_aggressive,
         WireRepeaterType.repeated_none,
         g.inputParameter.temperature,
-        False  # Not low-swing
+        False,  # Not low-swing
+        "localWire"
     )
 
     g.globalWire = Wire()
@@ -189,7 +193,8 @@ def run_python_destiny_calculation(config: OptimalConfiguration, config_file: st
         WireType.global_aggressive,
         WireRepeaterType.repeated_none,
         g.inputParameter.temperature,
-        False  # Not low-swing
+        False,  # Not low-swing
+        "globalWire"
     )
 
     # Initialize memory cell

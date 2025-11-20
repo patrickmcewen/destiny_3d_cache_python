@@ -226,7 +226,7 @@ class SymbolicValue:
         
         self.val_map = val_map
         if symbolic is None:
-            self.symbolic = sp.Symbol(f"{name}_{id(self)}", real=True, positive=True) if name is not None else sp.Symbol(f"symbolic_{id(self)}", real=True, positive=True)
+            self.symbolic = sp.Symbol(f"{name}", real=True, positive=True) if name is not None else sp.Symbol(f"symbolic_{id(self)}", real=True, positive=True)
             self.val_map[self.symbolic] = self.concrete
         else:
             self.symbolic = symbolic

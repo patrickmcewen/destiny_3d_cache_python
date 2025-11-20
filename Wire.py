@@ -72,7 +72,7 @@ class Wire:
         if self.senseAmp:
             del self.senseAmp
 
-    def Initialize(self, _featureSizeInNano, _wireType, _wireRepeaterType, _temperature, _isLowSwing):
+    def Initialize(self, _featureSizeInNano, _wireType, _wireRepeaterType, _temperature, _isLowSwing, _context="Wire"):
         """Initialize wire parameters based on technology and wire type.
 
         Args:
@@ -128,7 +128,7 @@ class Wire:
             self.featureSize = _featureSizeInNano * 1e-9
             self._initialize_default(copper_resistivity)
 
-        self.initialize_symbolic()
+        self.initialize_symbolic(_context)
 
         # Calculate wire dimensions
         self.wireWidth = self.wirePitch / 2
@@ -181,7 +181,7 @@ class Wire:
         self.initialized = True
 
     # should be called after the other _initialize_x function    
-    def initialize_symbolic(self):
+    def initialize_symbolic(self, _context):
         """Initialize symbolic parameters.
         
         Converts existing calculated values to SymbolicValue objects.
@@ -193,11 +193,11 @@ class Wire:
         assert not isinstance(self.aspectRatio, SymbolicValue), "aspectRatio is already symbolic"
         assert not isinstance(self.ildThickness, SymbolicValue), "ildThickness is already symbolic"
         if g.SYMBOLIC_ENABLED:
-            self.barrierThickness = SymbolicValue(self.barrierThickness, name="barrierThickness")
-            self.horizontalDielectric = SymbolicValue(self.horizontalDielectric, name="horizontalDielectric")
-            self.wirePitch = SymbolicValue(self.wirePitch, name="wirePitch")
-            self.aspectRatio = SymbolicValue(self.aspectRatio, name="aspectRatio")
-            self.ildThickness = SymbolicValue(self.ildThickness, name="ildThickness")
+            self.barrierThickness = SymbolicValue(self.barrierThickness, name=f"barrierThickness_{_context}")
+            self.horizontalDielectric = SymbolicValue(self.horizontalDielectric, name=f"horizontalDielectric_{_context}")
+            self.wirePitch = SymbolicValue(self.wirePitch, name=f"wirePitch_{_context}")
+            self.aspectRatio = SymbolicValue(self.aspectRatio, name=f"aspectRatio_{_context}")
+            self.ildThickness = SymbolicValue(self.ildThickness, name=f"ildThickness_{_context}")
         elif g.CONCRETE_WRAPPER_ENABLED:
             self.barrierThickness = ConcreteWrapper(self.barrierThickness)
             self.horizontalDielectric = ConcreteWrapper(self.horizontalDielectric)

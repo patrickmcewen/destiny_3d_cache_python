@@ -104,7 +104,7 @@ class Technology:
         self.tsv_occupation_area = [[0.0 for _ in range(TSV_type.NUM_TSV_TYPES)]
                                    for _ in range(NUMBER_INTERCONNECT_PROJECTION_TYPES)]
 
-    def Initialize(self, _featureSizeInNano, _deviceRoadmap, inputParameter):
+    def Initialize(self, _featureSizeInNano, _deviceRoadmap, inputParameter, _context):
         """
         Initialize technology parameters based on feature size and device roadmap.
 
@@ -140,14 +140,14 @@ class Technology:
             self._init_22nm(_deviceRoadmap)
         
         if g.SYMBOLIC_ENABLED:
-            self.initialize_symbolic()
+            self.initialize_symbolic(_context)
         elif g.CONCRETE_WRAPPER_ENABLED:
             self.initialize_concrete_wrapper()
 
         # Setup TSV parameters
         self._init_tsv_params(_featureSizeInNano)
         if g.SYMBOLIC_ENABLED:
-            self.initialize_tsv_symbolic()
+            self.initialize_tsv_symbolic(_context)
         elif g.CONCRETE_WRAPPER_ENABLED:
             self.initialize_tsv_concrete_wrapper()
 
@@ -183,24 +183,24 @@ class Technology:
 
         self.initialized = True
 
-    def initialize_symbolic(self):
+    def initialize_symbolic(self, _context):
         """Initialize symbolic parameters."""
-        self.vdd = SymbolicValue(concrete=self.vdd, name="vdd")
-        self.vth = SymbolicValue(concrete=self.vth, name="vth")
-        self.phyGateLength = SymbolicValue(concrete=self.phyGateLength, name="phyGateLength")
-        self.capIdealGate = SymbolicValue(concrete=self.capIdealGate, name="capIdealGate")
-        self.capFringe = SymbolicValue(concrete=self.capFringe, name="capFringe")
-        self.capJunction = SymbolicValue(concrete=self.capJunction, name="capJunction")
-        self.capOx = SymbolicValue(concrete=self.capOx, name="capOx")
-        self.effectiveElectronMobility = SymbolicValue(concrete=self.effectiveElectronMobility, name="effectiveElectronMobility")
-        self.effectiveHoleMobility = SymbolicValue(concrete=self.effectiveHoleMobility, name="effectiveHoleMobility")
-        self.pnSizeRatio = SymbolicValue(concrete=self.pnSizeRatio, name="pnSizeRatio")
-        self.effectiveResistanceMultiplier = SymbolicValue(concrete=self.effectiveResistanceMultiplier, name="effectiveResistanceMultiplier")
+        self.vdd = SymbolicValue(concrete=self.vdd, name=f"vdd_{_context}")
+        self.vth = SymbolicValue(concrete=self.vth, name=f"vth_{_context}")
+        self.phyGateLength = SymbolicValue(concrete=self.phyGateLength, name=f"phyGateLength_{_context}")
+        self.capIdealGate = SymbolicValue(concrete=self.capIdealGate, name=f"capIdealGate_{_context}")
+        self.capFringe = SymbolicValue(concrete=self.capFringe, name=f"capFringe_{_context}")
+        self.capJunction = SymbolicValue(concrete=self.capJunction, name=f"capJunction_{_context}")
+        self.capOx = SymbolicValue(concrete=self.capOx, name=f"capOx_{_context}")
+        self.effectiveElectronMobility = SymbolicValue(concrete=self.effectiveElectronMobility, name=f"effectiveElectronMobility_{_context}")
+        self.effectiveHoleMobility = SymbolicValue(concrete=self.effectiveHoleMobility, name=f"effectiveHoleMobility_{_context}")
+        self.pnSizeRatio = SymbolicValue(concrete=self.pnSizeRatio, name=f"pnSizeRatio_{_context}")
+        self.effectiveResistanceMultiplier = SymbolicValue(concrete=self.effectiveResistanceMultiplier, name=f"effectiveResistanceMultiplier_{_context}")
         for i in range(0, 101, 10):
-            self.currentOnNmos[i] = SymbolicValue(concrete=self.currentOnNmos[i], name=f"currentOnNmos_{i}")
-            self.currentOnPmos[i] = SymbolicValue(concrete=self.currentOnPmos[i], name=f"currentOnPmos_{i}")
-            self.currentOffNmos[i] = SymbolicValue(concrete=self.currentOffNmos[i], name=f"currentOffNmos_{i}")
-            self.currentOffPmos[i] = SymbolicValue(concrete=self.currentOffPmos[i], name=f"currentOffPmos_{i}")
+            self.currentOnNmos[i] = SymbolicValue(concrete=self.currentOnNmos[i], name=f"currentOnNmos_{i}_{_context}")
+            self.currentOnPmos[i] = SymbolicValue(concrete=self.currentOnPmos[i], name=f"currentOnPmos_{i}_{_context}")
+            self.currentOffNmos[i] = SymbolicValue(concrete=self.currentOffNmos[i], name=f"currentOffNmos_{i}_{_context}")
+            self.currentOffPmos[i] = SymbolicValue(concrete=self.currentOffPmos[i], name=f"currentOffPmos_{i}_{_context}")
 
     def initialize_concrete_wrapper(self):
         """Initialize concrete wrapper parameters for debugging."""
@@ -790,17 +790,17 @@ class Technology:
             exit(1)
             
     # should be called after the _init_tsv_params function
-    def initialize_tsv_symbolic(self):
+    def initialize_tsv_symbolic(self, _context):
         """Initialize symbolic TSV parameters."""
         for i in range(2):
             for j in range(2):
-                self.tsv_pitch[i][j] = SymbolicValue(concrete=self.tsv_pitch[i][j], name=f"tsv_pitch_{i}_{j}")
-                self.tsv_diameter[i][j] = SymbolicValue(concrete=self.tsv_diameter[i][j], name=f"tsv_diameter_{i}_{j}")
-                self.tsv_length[i][j] = SymbolicValue(concrete=self.tsv_length[i][j], name=f"tsv_length_{i}_{j}")
-                self.tsv_dielec_thickness[i][j] = SymbolicValue(concrete=self.tsv_dielec_thickness[i][j], name=f"tsv_dielec_thickness_{i}_{j}")
-                self.tsv_contact_resistance[i][j] = SymbolicValue(concrete=self.tsv_contact_resistance[i][j], name=f"tsv_contact_resistance_{i}_{j}")
-                self.tsv_depletion_width[i][j] = SymbolicValue(concrete=self.tsv_depletion_width[i][j], name=f"tsv_depletion_width_{i}_{j}")
-                self.tsv_liner_dielectric_constant[i][j] = SymbolicValue(concrete=self.tsv_liner_dielectric_constant[i][j], name=f"tsv_liner_dielectric_constant_{i}_{j}")
+                self.tsv_pitch[i][j] = SymbolicValue(concrete=self.tsv_pitch[i][j], name=f"tsv_pitch_{i}_{j}_{_context}")
+                self.tsv_diameter[i][j] = SymbolicValue(concrete=self.tsv_diameter[i][j], name=f"tsv_diameter_{i}_{j}_{_context}")
+                self.tsv_length[i][j] = SymbolicValue(concrete=self.tsv_length[i][j], name=f"tsv_length_{i}_{j}_{_context}")
+                self.tsv_dielec_thickness[i][j] = SymbolicValue(concrete=self.tsv_dielec_thickness[i][j], name=f"tsv_dielec_thickness_{i}_{j}_{_context}")
+                self.tsv_contact_resistance[i][j] = SymbolicValue(concrete=self.tsv_contact_resistance[i][j], name=f"tsv_contact_resistance_{i}_{j}_{_context}")
+                self.tsv_depletion_width[i][j] = SymbolicValue(concrete=self.tsv_depletion_width[i][j], name=f"tsv_depletion_width_{i}_{j}_{_context}")
+                self.tsv_liner_dielectric_constant[i][j] = SymbolicValue(concrete=self.tsv_liner_dielectric_constant[i][j], name=f"tsv_liner_dielectric_constant_{i}_{j}_{_context}")
 
     def initialize_tsv_concrete_wrapper(self):
         """Initialize concrete wrapper TSV parameters for debugging."""
