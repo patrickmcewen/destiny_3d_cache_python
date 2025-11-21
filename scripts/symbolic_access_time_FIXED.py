@@ -350,22 +350,37 @@ def compute_sensitivity(subarray, bank, config):
     print("\n" + "=" * 80)
     print("COMPUTING SENSITIVITY OF THE ACCESS TIME TO THE PARAMETERS")
     print("=" * 80)
+    print(f"display all symbolic variables and their values")
+    seen = set()
+    for param in bank.readLatency.symbolic.free_symbols:
+        if param not in seen:
+            print(f" {param}: {param.xreplace(bank.readLatency.val_map)}")
+            seen.add(param)
+    for param in bank.writeLatency.symbolic.free_symbols:
+        if param not in seen:
+            print(f" {param}: {param.xreplace(bank.writeLatency.val_map)}")
+            seen.add(param)
+    print("--------------------------------")
 
     print(f" start with read latency")
     read_sensitivities = {}
-    for param in bank.readLatency.val_map:
+    for param in bank.readLatency.symbolic.free_symbols:
         read_sensitivities[param] = bank.readLatency.symbolic.diff(param).xreplace(bank.readLatency.val_map)
-    print(f" top 5 read sensitivities (absolute value)")
-    for param in sorted(read_sensitivities, key=lambda x: abs(read_sensitivities[x]), reverse=True)[:5]:
-        print(f" {param}: {read_sensitivities[param]}")
+    print(f" top read sensitivities (absolute value) (normalized to current parameter value)")
+    read_lat = bank.readLatency.symbolic.xreplace(bank.readLatency.val_map)
+    for param in sorted(read_sensitivities, key=lambda x: abs(read_sensitivities[x]), reverse=True)[:]:
+        if bank.readLatency.val_map[param] != 0:
+            print(f" {param}: {read_sensitivities[param] * (bank.readLatency.val_map[param]/read_lat):.3e}")
 
     print(f"\n now with write latency")
     write_sensitivities = {}
-    for param in bank.writeLatency.val_map:
+    for param in bank.writeLatency.symbolic.free_symbols:
         write_sensitivities[param] = bank.writeLatency.symbolic.diff(param).xreplace(bank.writeLatency.val_map)
-    print(f" top 5 write sensitivities (absolute value)")
-    for param in sorted(write_sensitivities, key=lambda x: abs(write_sensitivities[x]), reverse=True)[:5]:
-        print(f" {param}: {write_sensitivities[param]}")
+    print(f" top write sensitivities (absolute value) (normalized to current parameter value)")
+    write_lat = bank.writeLatency.symbolic.xreplace(bank.writeLatency.val_map)
+    for param in sorted(write_sensitivities, key=lambda x: abs(write_sensitivities[x]), reverse=True)[:]:
+        if bank.writeLatency.val_map[param] != 0:
+            print(f" {param}: {write_sensitivities[param] * (bank.writeLatency.val_map[param]/write_lat):.3e}")
     
 
 def main():
