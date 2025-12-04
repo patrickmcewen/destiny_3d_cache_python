@@ -105,28 +105,28 @@ class Wire:
         # Initialize wire parameters based on feature size and wire type
         if _featureSizeInNano <= 22:
             self.featureSize = 22e-9
-            self._initialize_22nm(copper_resistivity)
+            copper_resistivity = self._initialize_22nm(copper_resistivity)
         elif _featureSizeInNano <= 32:
             self.featureSize = 32e-9
-            self._initialize_32nm(copper_resistivity)
+            copper_resistivity = self._initialize_32nm(copper_resistivity)
         elif _featureSizeInNano <= 45:
             self.featureSize = 45e-9
-            self._initialize_45nm(copper_resistivity)
+            copper_resistivity = self._initialize_45nm(copper_resistivity)
         elif _featureSizeInNano <= 65:
             self.featureSize = 65e-9
-            self._initialize_65nm(copper_resistivity)
+            copper_resistivity = self._initialize_65nm(copper_resistivity)
         elif _featureSizeInNano <= 90:
             self.featureSize = 90e-9
-            self._initialize_90nm(copper_resistivity)
+            copper_resistivity = self._initialize_90nm(copper_resistivity)
         elif _featureSizeInNano <= 120:
             self.featureSize = 120e-9
-            self._initialize_120nm(copper_resistivity)
+            copper_resistivity = self._initialize_120nm(copper_resistivity)
         elif _featureSizeInNano <= 200:
             self.featureSize = 200e-9
-            self._initialize_200nm(copper_resistivity)
+            copper_resistivity = self._initialize_200nm(copper_resistivity)
         else:
             self.featureSize = _featureSizeInNano * 1e-9
-            self._initialize_default(copper_resistivity)
+            copper_resistivity = self._initialize_default(copper_resistivity)
 
         self.initialize_symbolic(_context)
 
