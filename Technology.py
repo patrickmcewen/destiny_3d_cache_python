@@ -143,7 +143,10 @@ class Technology:
             self._init_22nm(_deviceRoadmap)
         
         if g.SYMBOLIC_ENABLED:
-            self.initialize_symbolic(_context)
+            if g.SYMBOLIC_TECH_MODEL_ENABLED:
+                self.initialize_symbolic_tech(_context)
+            else:
+                self.initialize_symbolic_no_tech(_context)
         elif g.CONCRETE_WRAPPER_ENABLED:
             self.initialize_concrete_wrapper()
 
@@ -186,11 +189,11 @@ class Technology:
 
         self.initialized = True
 
-    def initialize_symbolic(self, _context):
+    def initialize_symbolic_tech(self, _context):
         """Initialize symbolic parameters."""
-        vth_correction = 0.35 # tech_codesign takes in long channel limit threshold voltage
+        #vth_correction = 0.6 # tech_codesign takes in long channel limit threshold voltage
         self.vdd = SymbolicValue(concrete=self.vdd, name=f"vdd_{_context}")
-        self.vth = SymbolicValue(concrete=self.vth + vth_correction, name=f"vth_{_context}")
+        self.vth = SymbolicValue(concrete=self.vth, name=f"vth_{_context}")
         self.phyGateLength = SymbolicValue(concrete=self.phyGateLength, name=f"phyGateLength_{_context}")
         #self.capIdealGate = SymbolicValue(concrete=self.capIdealGate, name=f"capIdealGate_{_context}")
         self.capFringe = SymbolicValue(concrete=self.capFringe, name=f"capFringe_{_context}")
@@ -205,7 +208,7 @@ class Technology:
         eps_gox = SymbolicValue(concrete=3.9, name=f"eps_gox_{_context}")
         tgox = SymbolicValue(concrete=(eps_gox * tech_codesign_v0.eps0 / self.capOx), name=f"tgox_{_context}")
         eps_semi = SymbolicValue(concrete=11.7, name=f"eps_semi_{_context}")
-        tsemi = SymbolicValue(concrete=10e-9, name=f"tsemi_{_context}")
+        tsemi = SymbolicValue(concrete=5e-9, name=f"tsemi_{_context}")
         Lext = SymbolicValue(concrete=10e-9, name=f"Lext_{_context}")
         Lc = SymbolicValue(concrete=20e-9, name=f"Lc_{_context}")
         eps_cap = SymbolicValue(concrete=3.9, name=f"eps_cap_{_context}")
@@ -221,7 +224,7 @@ class Technology:
 
         self.capOx = eps_gox * tech_codesign_v0.eps0 / tgox
 
-        _, _, _, _, Ieff_n, Ieff_p, Ioff_n, Ioff_p, self.capIdealGate = tech_codesign_v0.final_symbolic_models(self.vdd, self.vth, self.phyGateLength, Wg, self.pnSizeRatio, mD_fac, self.effectiveElectronMobility, self.effectiveHoleMobility, eps_gox, tgox, eps_semi, tsemi, Lext, Lc, eps_cap, rho_c_n, rho_c_p, Rsh_c_n, Rsh_c_p, Rsh_ext_n, Rsh_ext_p, FO, M, a)
+        _, _, _, _, Ieff_n, Ieff_p, Ioff_n, Ioff_p, self.capIdealGate = tech_codesign_v0.final_symbolic_models(self.vdd, self.vth, self.phyGateLength, Wg, self.pnSizeRatio, mD_fac, self.effectiveElectronMobility, self.effectiveHoleMobility, eps_gox, tgox, eps_semi, tsemi, Lext, Lc, eps_cap, rho_c_n, rho_c_p, Rsh_c_n, Rsh_c_p, Rsh_ext_n, Rsh_ext_p, FO, M, a, disable_sce=True)
         Lscale = tech_codesign_v0.get_Lscale(eps_gox, eps_semi, tgox, tsemi)
         n0, delta, dVt = tech_codesign_v0.symbolic_sce_model_cmg(self.phyGateLength, self.vth, Lscale)
         self.V_th_eff = self.vth - dVt - delta * self.vdd
@@ -236,6 +239,25 @@ class Technology:
             self.currentOnPmos[i] = (Ieff_p / (self.pnSizeRatio * Wg))
             self.currentOffNmos[i] = (Ioff_n / Wg)
             self.currentOffPmos[i] = (Ioff_p / (self.pnSizeRatio * Wg))
+
+    def initialize_symbolic_no_tech(self, _context):
+        """Initialize symbolic parameters."""
+        self.vdd = SymbolicValue(concrete=self.vdd, name=f"vdd_{_context}")
+        self.vth = SymbolicValue(concrete=self.vth, name=f"vth_{_context}")
+        self.phyGateLength = SymbolicValue(concrete=self.phyGateLength, name=f"phyGateLength_{_context}")
+        self.capIdealGate = SymbolicValue(concrete=self.capIdealGate, name=f"capIdealGate_{_context}")
+        self.capFringe = SymbolicValue(concrete=self.capFringe, name=f"capFringe_{_context}")
+        self.capJunction = SymbolicValue(concrete=self.capJunction, name=f"capJunction_{_context}")
+        self.capOx = SymbolicValue(concrete=self.capOx, name=f"capOx_{_context}")
+        self.effectiveElectronMobility = SymbolicValue(concrete=self.effectiveElectronMobility, name=f"effectiveElectronMobility_{_context}")
+        self.effectiveHoleMobility = SymbolicValue(concrete=self.effectiveHoleMobility, name=f"effectiveHoleMobility_{_context}")
+        self.pnSizeRatio = SymbolicValue(concrete=self.pnSizeRatio, name=f"pnSizeRatio_{_context}")
+        self.effectiveResistanceMultiplier = SymbolicValue(concrete=self.effectiveResistanceMultiplier, name=f"effectiveResistanceMultiplier_{_context}")
+        for i in range(0, 101, 10):
+            self.currentOnNmos[i] = SymbolicValue(concrete=self.currentOnNmos[i], name=f"currentOnNmos_{i}_{_context}")
+            self.currentOnPmos[i] = SymbolicValue(concrete=self.currentOnPmos[i], name=f"currentOnPmos_{i}_{_context}")
+            self.currentOffNmos[i] = SymbolicValue(concrete=self.currentOffNmos[i], name=f"currentOffNmos_{i}_{_context}")
+            self.currentOffPmos[i] = SymbolicValue(concrete=self.currentOffPmos[i], name=f"currentOffPmos_{i}_{_context}")
 
     def initialize_concrete_wrapper(self):
         """Initialize concrete wrapper parameters for debugging."""

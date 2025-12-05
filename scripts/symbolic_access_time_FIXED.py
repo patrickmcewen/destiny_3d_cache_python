@@ -29,7 +29,8 @@ from typedef import (
 )
 from parse_cpp_output import OptimalConfiguration, parse_cpp_destiny_output
 from sympy import symbols, simplify, latex
-
+from symbolic_wrapper import SymbolicValue
+import sympy as sp
 
 def _to_ns(value: float | None) -> float:
     return (value or 0.0) * 1e9
@@ -333,6 +334,8 @@ def compare_results(subarray, bank, config):
         bank.mat.subarray.senseAmpMuxLev1.readLatency +
         bank.mat.subarray.senseAmpMuxLev2.readLatency
     )
+    if not isinstance(bank_mux_ps, SymbolicValue):
+        bank_mux_ps = SymbolicValue(concrete=bank_mux_ps, name="bank_mux_ps")
     cpp_mux_ps = _to_ps(config.mux_latency)
 
     if g.inputParameter.routingMode == RoutingMode.h_tree:

@@ -88,8 +88,8 @@ def parse_cpp_destiny_output(output_file: str) -> OptimalConfiguration:
                              content, re.DOTALL)
 
     if not data_section:
-        # Try non-cache format
-        data_section = re.search(r'CONFIGURATION.*?RESULT', content, re.DOTALL)
+        # Try non-cache format - include RESULT section which contains timing data
+        data_section = re.search(r'CONFIGURATION.*?RESULT.*?(?=Finished!|$)', content, re.DOTALL)
 
     if data_section:
         section_text = data_section.group(0)
@@ -157,86 +157,125 @@ def parse_cpp_destiny_output(output_file: str) -> OptimalConfiguration:
             config.rows_per_set = int(rows_per_set.group(1))
 
         # Parse timing details
-        read_lat = re.search(r'Read Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        # Allow for leading dashes, pipes, and spaces (e.g., "-  Read Latency" or "|--- H-Tree Latency")
+        read_lat = re.search(r'[|\s-]*Read Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if read_lat:
             config.read_latency = parse_time_value(read_lat.group(1), read_lat.group(2))
+        else:
+            print(f"Warning: No read latency found in C++ DESTINY output")
 
-        write_lat = re.search(r'Write Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        write_lat = re.search(r'[|\s-]*Write Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if write_lat:
             config.write_latency = parse_time_value(write_lat.group(1), write_lat.group(2))
+        else:
+            print(f"Warning: No write latency found in C++ DESTINY output")
 
         # Parse detailed timing breakdown
-        tsv_lat = re.search(r'TSV Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        tsv_lat = re.search(r'[|\s-]*TSV Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if tsv_lat:
             config.tsv_latency = parse_time_value(tsv_lat.group(1), tsv_lat.group(2))
-
-        htree_lat = re.search(r'H-Tree Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        else:
+            print(f"Warning: No TSV latency found in C++ DESTINY output")
+            
+        htree_lat = re.search(r'[|\s-]*H-Tree Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if htree_lat:
             config.htree_latency = parse_time_value(htree_lat.group(1), htree_lat.group(2))
-
-        mat_lat = re.search(r'Mat Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        else:
+            print(f"Warning: No H-Tree latency found in C++ DESTINY output")
+            
+        mat_lat = re.search(r'[|\s-]*Mat Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if mat_lat:
             config.mat_latency = parse_time_value(mat_lat.group(1), mat_lat.group(2))
-
-        predec_lat = re.search(r'Predecoder Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        else:
+            print(f"Warning: No Mat latency found in C++ DESTINY output")
+            
+        predec_lat = re.search(r'[|\s-]*Predecoder Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if predec_lat:
             config.predecoder_latency = parse_time_value(predec_lat.group(1), predec_lat.group(2))
-
-        subarray_lat = re.search(r'Subarray Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        else:
+            print(f"Warning: No Predecoder latency found in C++ DESTINY output")
+            
+        subarray_lat = re.search(r'[|\s-]*Subarray Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if subarray_lat:
             config.subarray_latency = parse_time_value(subarray_lat.group(1), subarray_lat.group(2))
-
-        rowdec_lat = re.search(r'Row Decoder Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        else:
+            print(f"Warning: No Subarray latency found in C++ DESTINY output")
+            
+        rowdec_lat = re.search(r'[|\s-]*Row Decoder Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if rowdec_lat:
             config.row_decoder_latency = parse_time_value(rowdec_lat.group(1), rowdec_lat.group(2))
-
-        bitline_lat = re.search(r'Bitline Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        else:
+            print(f"Warning: No Row Decoder latency found in C++ DESTINY output")
+            
+        bitline_lat = re.search(r'[|\s-]*Bitline Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if bitline_lat:
             config.bitline_latency = parse_time_value(bitline_lat.group(1), bitline_lat.group(2))
-
-        senseamp_lat = re.search(r'Senseamp Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        else:
+            print(f"Warning: No Bitline latency found in C++ DESTINY output")
+            
+        senseamp_lat = re.search(r'[|\s-]*Senseamp Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if senseamp_lat:
             config.senseamp_latency = parse_time_value(senseamp_lat.group(1), senseamp_lat.group(2))
-
-        mux_lat = re.search(r'Mux Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        else:
+            print(f"Warning: No Senseamp latency found in C++ DESTINY output")
+            
+        mux_lat = re.search(r'[|\s-]*Mux Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if mux_lat:
             config.mux_latency = parse_time_value(mux_lat.group(1), mux_lat.group(2))
-
-        precharge_lat = re.search(r'Precharge Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
+        else:
+            print(f"Warning: No Mux latency found in C++ DESTINY output")
+            
+        precharge_lat = re.search(r'[|\s-]*Precharge Latency\s*=\s*([\d.]+)([pnmu]?s)', section_text)
         if precharge_lat:
             config.precharge_latency = parse_time_value(precharge_lat.group(1), precharge_lat.group(2))
+        else:
+            print(f"Warning: No Precharge latency found in C++ DESTINY output")
 
         # Parse cell parameters
         cell_match = re.search(r'Memory Cell:\s*(\w+)', section_text)
         if cell_match:
             config.cell_type = cell_match.group(1)
-
+        else:
+            print(f"Warning: No cell type found in C++ DESTINY output")
+            
         cell_area = re.search(r'Cell Area \(F\^2\)\s*:\s*([\d.]+)', section_text)
         if cell_area:
             config.cell_area = float(cell_area.group(1))
-
+        else:
+            print(f"Warning: No cell area found in C++ DESTINY output")
+            
         aspect_ratio = re.search(r'Cell Aspect Ratio\s*:\s*([\d.]+)', section_text)
         if aspect_ratio:
             config.cell_aspect_ratio = float(aspect_ratio.group(1))
-
+        else:
+            print(f"Warning: No cell aspect ratio found in C++ DESTINY output")
+            
         # Parse wire types
         local_wire = re.search(r'Wire Type\s*:\s*(.+?)(?=\n)', section_text)
         if local_wire:
             config.local_wire_type = local_wire.group(1).strip()
-
+        else:
+            print(f"Warning: No local wire type found in C++ DESTINY output")
+            
         # Parse power details - look for "Read Dynamic Energy = X.XXXpJ" pattern
         read_energy = re.search(r'-\s+Read Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)', section_text)
         if read_energy:
             config.read_dynamic_energy = parse_energy_value(read_energy.group(1), read_energy.group(2))
-
+        else:
+            print(f"Warning: No read dynamic energy found in C++ DESTINY output")
+            
         write_energy = re.search(r'-\s+Write Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)', section_text)
         if write_energy:
             config.write_dynamic_energy = parse_energy_value(write_energy.group(1), write_energy.group(2))
-
+        else:
+            print(f"Warning: No write dynamic energy found in C++ DESTINY output")
+            
         leakage = re.search(r'-\s+Leakage Power\s*=\s*([\d.]+)([mup]?W)', section_text)
         if leakage:
             config.leakage_power = parse_power_value(leakage.group(1), leakage.group(2))
-
+        else:
+            print(f"Warning: No leakage power found in C++ DESTINY output")
+            
         # Parse routing energy breakdown - H-Tree appears under Read Dynamic Energy section
         # Find H-Tree energy that appears after "Read Dynamic Energy"
         read_section = re.search(r'Read Dynamic Energy.*?(?=Write Dynamic Energy|$)', section_text, re.DOTALL)
@@ -244,26 +283,39 @@ def parse_cpp_destiny_output(output_file: str) -> OptimalConfiguration:
             routing_read = re.search(r'H-Tree Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)', read_section.group(0))
             if routing_read:
                 config.routing_read_energy = parse_energy_value(routing_read.group(1), routing_read.group(2))
-
+            else:
+                print(f"Warning: No H-Tree dynamic energy found in C++ DESTINY output")
+        else:
+            print(f"Warning: No Read Dynamic Energy section found in C++ DESTINY output")
+                
         # Find H-Tree energy that appears after "Write Dynamic Energy"
         write_section = re.search(r'Write Dynamic Energy.*?(?=Leakage Power|$)', section_text, re.DOTALL)
         if write_section:
             routing_write = re.search(r'H-Tree Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)', write_section.group(0))
             if routing_write:
                 config.routing_write_energy = parse_energy_value(routing_write.group(1), routing_write.group(2))
-
+            else:
+                print(f"Warning: No H-Tree dynamic energy found in C++ DESTINY output")
+        else:
+            print(f"Warning: No Write Dynamic Energy section found in C++ DESTINY output")
         # Parse mat energy breakdown - appears after Read Dynamic Energy
         if read_section:
             mat_read = re.search(r'Mat Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)\s+per mat', read_section.group(0))
             if mat_read:
                 config.mat_read_energy = parse_energy_value(mat_read.group(1), mat_read.group(2))
-
+            else:
+                print(f"Warning: No Mat dynamic energy found in C++ DESTINY output")
+        else:
+            print(f"Warning: No Read Dynamic Energy section found in C++ DESTINY output")
         # Parse mat energy for write - appears after Write Dynamic Energy
         if write_section:
             mat_write = re.search(r'Mat Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)\s+per mat', write_section.group(0))
             if mat_write:
                 config.mat_write_energy = parse_energy_value(mat_write.group(1), mat_write.group(2))
-
+            else:
+                print(f"Warning: No Mat dynamic energy found in C++ DESTINY output")
+        else:
+            print(f"Warning: No Write Dynamic Energy section found in C++ DESTINY output")
     return config
 
 
