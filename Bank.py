@@ -9,6 +9,7 @@ from FunctionUnit import FunctionUnit
 from Mat import Mat
 from TSV import TSV
 from typedef import BufferDesignTarget, MemoryType
+import globals as g
 
 
 class Bank(FunctionUnit):
@@ -24,6 +25,7 @@ class Bank(FunctionUnit):
         # Initialization flags
         self.initialized = False
         self.invalid = False
+        self.g = g
 
         # Configuration properties
         self.internalSenseAmp = False

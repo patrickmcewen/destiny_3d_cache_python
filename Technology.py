@@ -188,7 +188,7 @@ class Technology:
 
     def initialize_symbolic(self, _context):
         """Initialize symbolic parameters."""
-        vth_correction = 0.3 # tech_codesign takes in long channel limit threshold voltage
+        vth_correction = 0.35 # tech_codesign takes in long channel limit threshold voltage
         self.vdd = SymbolicValue(concrete=self.vdd, name=f"vdd_{_context}")
         self.vth = SymbolicValue(concrete=self.vth + vth_correction, name=f"vth_{_context}")
         self.phyGateLength = SymbolicValue(concrete=self.phyGateLength, name=f"phyGateLength_{_context}")
@@ -222,11 +222,15 @@ class Technology:
         self.capOx = eps_gox * tech_codesign_v0.eps0 / tgox
 
         _, _, _, _, Ieff_n, Ieff_p, Ioff_n, Ioff_p, self.capIdealGate = tech_codesign_v0.final_symbolic_models(self.vdd, self.vth, self.phyGateLength, Wg, self.pnSizeRatio, mD_fac, self.effectiveElectronMobility, self.effectiveHoleMobility, eps_gox, tgox, eps_semi, tsemi, Lext, Lc, eps_cap, rho_c_n, rho_c_p, Rsh_c_n, Rsh_c_p, Rsh_ext_n, Rsh_ext_p, FO, M, a)
+        Lscale = tech_codesign_v0.get_Lscale(eps_gox, eps_semi, tgox, tsemi)
+        n0, delta, dVt = tech_codesign_v0.symbolic_sce_model_cmg(self.phyGateLength, self.vth, Lscale)
+        self.V_th_eff = self.vth - dVt - delta * self.vdd
         print(f"gate length: {self.phyGateLength.concrete}")
-        print(Ieff_n.concrete / Wg.concrete)
-        print(Ieff_p.concrete / (self.pnSizeRatio.concrete * Wg.concrete))
-        print(Ioff_n.concrete / Wg.concrete)
-        print(Ioff_p.concrete / (self.pnSizeRatio.concrete * Wg.concrete))
+        print(f"V_th_eff: {self.V_th_eff.concrete}")
+        print(f"Ieff_n/Wg: {Ieff_n.concrete / Wg.concrete}")
+        print(f"Ieff_p/Wg: {Ieff_p.concrete / (self.pnSizeRatio.concrete * Wg.concrete)}")
+        print(f"Ioff_n/Wg: {Ioff_n.concrete / Wg.concrete}")
+        print(f"Ioff_p/Wg: {Ioff_p.concrete / (self.pnSizeRatio.concrete * Wg.concrete)}")
         for i in range(0, 101, 10):
             self.currentOnNmos[i] = (Ieff_n / Wg)
             self.currentOnPmos[i] = (Ieff_p / (self.pnSizeRatio * Wg))
