@@ -14,7 +14,10 @@ from constant import (NUMBER_INTERCONNECT_PROJECTION_TYPES,
 from symbolic_wrapper import SymbolicValue, ConcreteWrapper
 import symbolic_wrapper as sw
 import globals as g
-
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tech_codesign_v0 import tech_codesign_v0
 
 class Technology:
     """
@@ -185,22 +188,50 @@ class Technology:
 
     def initialize_symbolic(self, _context):
         """Initialize symbolic parameters."""
+        vth_correction = 0.3 # tech_codesign takes in long channel limit threshold voltage
         self.vdd = SymbolicValue(concrete=self.vdd, name=f"vdd_{_context}")
-        self.vth = SymbolicValue(concrete=self.vth, name=f"vth_{_context}")
+        self.vth = SymbolicValue(concrete=self.vth + vth_correction, name=f"vth_{_context}")
         self.phyGateLength = SymbolicValue(concrete=self.phyGateLength, name=f"phyGateLength_{_context}")
-        self.capIdealGate = SymbolicValue(concrete=self.capIdealGate, name=f"capIdealGate_{_context}")
+        #self.capIdealGate = SymbolicValue(concrete=self.capIdealGate, name=f"capIdealGate_{_context}")
         self.capFringe = SymbolicValue(concrete=self.capFringe, name=f"capFringe_{_context}")
         self.capJunction = SymbolicValue(concrete=self.capJunction, name=f"capJunction_{_context}")
-        self.capOx = SymbolicValue(concrete=self.capOx, name=f"capOx_{_context}")
+        #self.capOx = SymbolicValue(concrete=self.capOx, name=f"capOx_{_context}")
         self.effectiveElectronMobility = SymbolicValue(concrete=self.effectiveElectronMobility, name=f"effectiveElectronMobility_{_context}")
         self.effectiveHoleMobility = SymbolicValue(concrete=self.effectiveHoleMobility, name=f"effectiveHoleMobility_{_context}")
         self.pnSizeRatio = SymbolicValue(concrete=self.pnSizeRatio, name=f"pnSizeRatio_{_context}")
         self.effectiveResistanceMultiplier = SymbolicValue(concrete=self.effectiveResistanceMultiplier, name=f"effectiveResistanceMultiplier_{_context}")
+        Wg = SymbolicValue(concrete=120e-9, name=f"Wg_{_context}")
+        mD_fac = SymbolicValue(concrete=0.5, name=f"mD_fac_{_context}")
+        eps_gox = SymbolicValue(concrete=3.9, name=f"eps_gox_{_context}")
+        tgox = SymbolicValue(concrete=(eps_gox * tech_codesign_v0.eps0 / self.capOx), name=f"tgox_{_context}")
+        eps_semi = SymbolicValue(concrete=11.7, name=f"eps_semi_{_context}")
+        tsemi = SymbolicValue(concrete=10e-9, name=f"tsemi_{_context}")
+        Lext = SymbolicValue(concrete=10e-9, name=f"Lext_{_context}")
+        Lc = SymbolicValue(concrete=20e-9, name=f"Lc_{_context}")
+        eps_cap = SymbolicValue(concrete=3.9, name=f"eps_cap_{_context}")
+        rho_c_n = SymbolicValue(concrete=7e-12, name=f"rho_c_n_{_context}")
+        rho_c_p = SymbolicValue(concrete=7e-12, name=f"rho_c_p_{_context}")
+        Rsh_c_n = SymbolicValue(concrete=9000, name=f"Rsh_c_n_{_context}")
+        Rsh_c_p = SymbolicValue(concrete=9000, name=f"Rsh_c_p_{_context}")
+        Rsh_ext_n = SymbolicValue(concrete=9000, name=f"Rsh_ext_n_{_context}")
+        Rsh_ext_p = SymbolicValue(concrete=9000, name=f"Rsh_ext_p_{_context}")
+        FO = SymbolicValue(concrete=4, name=f"FO_{_context}")
+        M = SymbolicValue(concrete=2, name=f"M_{_context}")
+        a = SymbolicValue(concrete=0.5, name=f"a_{_context}")
+
+        self.capOx = eps_gox * tech_codesign_v0.eps0 / tgox
+
+        _, _, _, _, Ieff_n, Ieff_p, Ioff_n, Ioff_p, self.capIdealGate = tech_codesign_v0.final_symbolic_models(self.vdd, self.vth, self.phyGateLength, Wg, self.pnSizeRatio, mD_fac, self.effectiveElectronMobility, self.effectiveHoleMobility, eps_gox, tgox, eps_semi, tsemi, Lext, Lc, eps_cap, rho_c_n, rho_c_p, Rsh_c_n, Rsh_c_p, Rsh_ext_n, Rsh_ext_p, FO, M, a)
+        print(f"gate length: {self.phyGateLength.concrete}")
+        print(Ieff_n.concrete / Wg.concrete)
+        print(Ieff_p.concrete / (self.pnSizeRatio.concrete * Wg.concrete))
+        print(Ioff_n.concrete / Wg.concrete)
+        print(Ioff_p.concrete / (self.pnSizeRatio.concrete * Wg.concrete))
         for i in range(0, 101, 10):
-            self.currentOnNmos[i] = SymbolicValue(concrete=self.currentOnNmos[i], name=f"currentOnNmos_{i}_{_context}")
-            self.currentOnPmos[i] = SymbolicValue(concrete=self.currentOnPmos[i], name=f"currentOnPmos_{i}_{_context}")
-            self.currentOffNmos[i] = SymbolicValue(concrete=self.currentOffNmos[i], name=f"currentOffNmos_{i}_{_context}")
-            self.currentOffPmos[i] = SymbolicValue(concrete=self.currentOffPmos[i], name=f"currentOffPmos_{i}_{_context}")
+            self.currentOnNmos[i] = (Ieff_n / Wg)
+            self.currentOnPmos[i] = (Ieff_p / (self.pnSizeRatio * Wg))
+            self.currentOffNmos[i] = (Ioff_n / Wg)
+            self.currentOffPmos[i] = (Ioff_p / (self.pnSizeRatio * Wg))
 
     def initialize_concrete_wrapper(self):
         """Initialize concrete wrapper parameters for debugging."""

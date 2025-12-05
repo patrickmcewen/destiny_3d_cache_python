@@ -58,6 +58,15 @@ class OptimalConfiguration:
         self.local_wire_type = None
         self.global_wire_type = None
 
+        # Power results from C++
+        self.read_dynamic_energy = None
+        self.write_dynamic_energy = None
+        self.leakage_power = None
+        self.routing_read_energy = None
+        self.routing_write_energy = None
+        self.mat_read_energy = None
+        self.mat_write_energy = None
+
 
 def parse_cpp_destiny_output(output_file: str) -> OptimalConfiguration:
     """
@@ -215,6 +224,46 @@ def parse_cpp_destiny_output(output_file: str) -> OptimalConfiguration:
         if local_wire:
             config.local_wire_type = local_wire.group(1).strip()
 
+        # Parse power details - look for "Read Dynamic Energy = X.XXXpJ" pattern
+        read_energy = re.search(r'-\s+Read Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)', section_text)
+        if read_energy:
+            config.read_dynamic_energy = parse_energy_value(read_energy.group(1), read_energy.group(2))
+
+        write_energy = re.search(r'-\s+Write Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)', section_text)
+        if write_energy:
+            config.write_dynamic_energy = parse_energy_value(write_energy.group(1), write_energy.group(2))
+
+        leakage = re.search(r'-\s+Leakage Power\s*=\s*([\d.]+)([mup]?W)', section_text)
+        if leakage:
+            config.leakage_power = parse_power_value(leakage.group(1), leakage.group(2))
+
+        # Parse routing energy breakdown - H-Tree appears under Read Dynamic Energy section
+        # Find H-Tree energy that appears after "Read Dynamic Energy"
+        read_section = re.search(r'Read Dynamic Energy.*?(?=Write Dynamic Energy|$)', section_text, re.DOTALL)
+        if read_section:
+            routing_read = re.search(r'H-Tree Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)', read_section.group(0))
+            if routing_read:
+                config.routing_read_energy = parse_energy_value(routing_read.group(1), routing_read.group(2))
+
+        # Find H-Tree energy that appears after "Write Dynamic Energy"
+        write_section = re.search(r'Write Dynamic Energy.*?(?=Leakage Power|$)', section_text, re.DOTALL)
+        if write_section:
+            routing_write = re.search(r'H-Tree Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)', write_section.group(0))
+            if routing_write:
+                config.routing_write_energy = parse_energy_value(routing_write.group(1), routing_write.group(2))
+
+        # Parse mat energy breakdown - appears after Read Dynamic Energy
+        if read_section:
+            mat_read = re.search(r'Mat Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)\s+per mat', read_section.group(0))
+            if mat_read:
+                config.mat_read_energy = parse_energy_value(mat_read.group(1), mat_read.group(2))
+
+        # Parse mat energy for write - appears after Write Dynamic Energy
+        if write_section:
+            mat_write = re.search(r'Mat Dynamic Energy\s*=\s*([\d.]+)([pnmu]?J)\s+per mat', write_section.group(0))
+            if mat_write:
+                config.mat_write_energy = parse_energy_value(mat_write.group(1), mat_write.group(2))
+
     return config
 
 
@@ -229,6 +278,38 @@ def parse_time_value(value_str: str, unit: str) -> float:
         'μs': 1e-6,
         'ns': 1e-9,
         'ps': 1e-12
+    }
+
+    return value * unit_multipliers.get(unit, 1.0)
+
+
+def parse_energy_value(value_str: str, unit: str) -> float:
+    """Convert energy string with unit to Joules"""
+    value = float(value_str)
+
+    unit_multipliers = {
+        'J': 1.0,
+        'mJ': 1e-3,
+        'uJ': 1e-6,
+        'μJ': 1e-6,
+        'nJ': 1e-9,
+        'pJ': 1e-12
+    }
+
+    return value * unit_multipliers.get(unit, 1.0)
+
+
+def parse_power_value(value_str: str, unit: str) -> float:
+    """Convert power string with unit to Watts"""
+    value = float(value_str)
+
+    unit_multipliers = {
+        'W': 1.0,
+        'mW': 1e-3,
+        'uW': 1e-6,
+        'μW': 1e-6,
+        'nW': 1e-9,
+        'pW': 1e-12
     }
 
     return value * unit_multipliers.get(unit, 1.0)

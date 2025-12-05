@@ -43,6 +43,14 @@ def _to_mm2(value: float | None) -> float:
     return (value or 0.0) * 1e6  # m^2 -> mm^2
 
 
+def _to_pj(value: float | None) -> float:
+    return (value or 0.0) * 1e12  # J -> pJ
+
+
+def _to_mw(value: float | None) -> float:
+    return (value or 0.0) * 1e3  # W -> mW
+
+
 def _safe_match_percent(py_value: float, cpp_value: float) -> float:
     if cpp_value == 0:
         return 100.0
@@ -213,6 +221,7 @@ def run_python_destiny_calculation(config: OptimalConfiguration, config_file: st
     # Create and initialize SubArray
     subarray = SubArray()
 
+    print(f"  Subarray: {config.subarray_rows} rows × {config.subarray_cols} cols")
     # Initialize with optimal configuration from C++ DESTINY
     subarray.Initialize(
         config.subarray_rows,          # numRow
@@ -345,7 +354,68 @@ def compare_results(subarray, bank, config):
     print(f"   Dimensions        : {bank.height * 1e3:8.3f} mm × {bank.width * 1e3:8.3f} mm")
 
 
-def compute_sensitivity(subarray, bank, config):
+def compare_results_power(subarray, bank, config):
+    """Compare Python DESTINY power numbers with C++ DESTINY"""
+
+    def _fmt_energy(label: str, py_val, cpp_val: float | None, unit: str = "pJ") -> str:
+        """Format a row with symbolic vs concrete vs C++ energy."""
+        symbolic_val = float(py_val.symbolic.xreplace(py_val.val_map))
+        concrete_val = py_val.concrete
+        if cpp_val is not None:
+            # cpp_val is in Joules, convert to pJ for comparison
+            cpp_val_converted = _to_pj(cpp_val)
+            diff = abs(concrete_val - cpp_val_converted)
+            return f"   {label:<24}{symbolic_val:>10.3f} {unit:<4}{concrete_val:>10.3f} {unit:<4}{cpp_val_converted:>10.3f} {unit:<4}{diff:>10.3f} {unit:<4}"
+        else:
+            return f"   {label:<24}{symbolic_val:>10.3f} {unit:<4}{concrete_val:>10.3f} {unit:<4}{'N/A':>10} {unit:<4}{'N/A':>10} {unit:<4}"
+
+    def _fmt_power(label: str, py_val, cpp_val: float | None, unit: str = "mW") -> str:
+        """Format a row with symbolic vs concrete vs C++ power."""
+        symbolic_val = float(py_val.symbolic.xreplace(py_val.val_map))
+        concrete_val = py_val.concrete
+        if cpp_val is not None:
+            # cpp_val is in Watts, convert to mW for comparison
+            cpp_val_converted = _to_mw(cpp_val)
+            diff = abs(concrete_val - cpp_val_converted)
+            return f"   {label:<24}{symbolic_val:>10.3f} {unit:<4}{concrete_val:>10.3f} {unit:<4}{cpp_val_converted:>10.3f} {unit:<4}{diff:>10.3f} {unit:<4}"
+        else:
+            return f"   {label:<24}{symbolic_val:>10.3f} {unit:<4}{concrete_val:>10.3f} {unit:<4}{'N/A':>10} {unit:<4}{'N/A':>10} {unit:<4}"
+
+    print("\n" + "=" * 80)
+    print("BANK-LEVEL POWER (Python vs C++ DESTINY)")
+    print("=" * 80)
+    print(f"   {'Component':<24}{'SymPy':>10} {'Unit':<4}{'Python':>10} {'Unit':<4}{'C++':>10} {'Unit':<4}{'Diff':>10} {'Unit':<4}")
+
+    read_pj = _to_pj(bank.readDynamicEnergy)
+    write_pj = _to_pj(bank.writeDynamicEnergy)
+    print(_fmt_energy("Read Dynamic Energy", read_pj, config.read_dynamic_energy))
+    print(_fmt_energy("Write Dynamic Energy", write_pj, config.write_dynamic_energy))
+
+    refresh_attr = getattr(bank, "refreshDynamicEnergy", None)
+    reset_attr = getattr(bank, "resetDynamicEnergy", None)
+    set_attr = getattr(bank, "setDynamicEnergy", None)
+
+    if refresh_attr is not None:
+        print(_fmt_energy("Refresh Dynamic Energy", _to_pj(refresh_attr), None))
+    if reset_attr is not None:
+        print(_fmt_energy("Reset Dynamic Energy", _to_pj(reset_attr), None))
+    if set_attr is not None:
+        print(_fmt_energy("Set Dynamic Energy", _to_pj(set_attr), None))
+
+    # Routing breakdown (if available)
+    if hasattr(bank, "routingReadDynamicEnergy"):
+        routing_read_pj = _to_pj(bank.routingReadDynamicEnergy)
+        routing_write_pj = _to_pj(bank.routingWriteDynamicEnergy)
+        print(_fmt_energy("Routing Read Energy", routing_read_pj, config.routing_read_energy))
+        print(_fmt_energy("Routing Write Energy", routing_write_pj, config.routing_write_energy))
+
+    # Leakage power
+    if hasattr(bank, "leakage"):
+        leak_mw = _to_mw(bank.leakage)
+        print(_fmt_power("Leakage Power", leak_mw, config.leakage_power))
+
+
+def compute_sensitivity(subarray, bank, config, disable_knobs=[]):
     """Compute sensitivity of the access time to the parameters"""
     print("\n" + "=" * 80)
     print("COMPUTING SENSITIVITY OF THE ACCESS TIME TO THE PARAMETERS")
@@ -353,10 +423,14 @@ def compute_sensitivity(subarray, bank, config):
     print(f"display all symbolic variables and their values")
     seen = set()
     for param in bank.readLatency.symbolic.free_symbols:
+        if param in disable_knobs:
+            continue
         if param not in seen:
             print(f" {param}: {param.xreplace(bank.readLatency.val_map)}")
             seen.add(param)
     for param in bank.writeLatency.symbolic.free_symbols:
+        if param in disable_knobs:
+            continue
         if param not in seen:
             print(f" {param}: {param.xreplace(bank.writeLatency.val_map)}")
             seen.add(param)
@@ -365,6 +439,8 @@ def compute_sensitivity(subarray, bank, config):
     print(f" start with read latency")
     read_sensitivities = {}
     for param in bank.readLatency.symbolic.free_symbols:
+        if param in disable_knobs:
+            continue
         read_sensitivities[param] = bank.readLatency.symbolic.diff(param).xreplace(bank.readLatency.val_map)
     print(f" top read sensitivities (absolute value) (normalized to current parameter value)")
     read_lat = bank.readLatency.symbolic.xreplace(bank.readLatency.val_map)
@@ -375,6 +451,8 @@ def compute_sensitivity(subarray, bank, config):
     print(f"\n now with write latency")
     write_sensitivities = {}
     for param in bank.writeLatency.symbolic.free_symbols:
+        if param in disable_knobs:
+            continue
         write_sensitivities[param] = bank.writeLatency.symbolic.diff(param).xreplace(bank.writeLatency.val_map)
     print(f" top write sensitivities (absolute value) (normalized to current parameter value)")
     write_lat = bank.writeLatency.symbolic.xreplace(bank.writeLatency.val_map)
@@ -417,6 +495,7 @@ def main():
 
     # Compare results
     compare_results(subarray, bank, opt_config)
+    compare_results_power(subarray, bank, opt_config)
 
     compute_sensitivity(subarray, bank, opt_config)
 
