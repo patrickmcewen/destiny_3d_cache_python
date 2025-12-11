@@ -253,6 +253,7 @@ class Technology:
         self.effectiveHoleMobility = SymbolicValue(concrete=self.effectiveHoleMobility, name=f"effectiveHoleMobility_{_context}")
         self.pnSizeRatio = SymbolicValue(concrete=self.pnSizeRatio, name=f"pnSizeRatio_{_context}")
         self.effectiveResistanceMultiplier = SymbolicValue(concrete=self.effectiveResistanceMultiplier, name=f"effectiveResistanceMultiplier_{_context}")
+        self.V_th_eff = self.vth
         for i in range(0, 101, 10):
             self.currentOnNmos[i] = SymbolicValue(concrete=self.currentOnNmos[i], name=f"currentOnNmos_{i}_{_context}")
             self.currentOnPmos[i] = SymbolicValue(concrete=self.currentOnPmos[i], name=f"currentOnPmos_{i}_{_context}")
